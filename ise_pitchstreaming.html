@@ -148,14 +148,14 @@
       stimulus: 'sounds_Jones1999/SHEEP.WAV',
       choices: ['Löwe', 'Elefant', 'Schaf', 'Hund'],
       prompt: `
-        <p>Welches Tier haben Sie gehört?</p>
+        <p>Welches Tier hören Sie, wenn Sie den Button klicken??</p>
         <button onclick="document.getElementById('replay-audio').play()" 
                 style="margin-bottom:20px; padding:8px 16px; cursor:pointer;">
-          🔊 Nochmal abspielen
+          🔊 Jetzt abspielen
         </button>
         <audio id="replay-audio" src="sounds_Jones1999/SHEEP.wav"></audio>
          `,
-      response_allowed_while_playing: true
+      response_allowed_while_playing: false
     };
     timeline.push(check_audio);
      
