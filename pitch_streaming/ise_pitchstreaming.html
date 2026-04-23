@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html>
+  <head
+    <title>Serial Recall</title>
+    <script src="jatos.js"></script>
+    <script src="https://unpkg.com/jspsych@8.2.3"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.2.0"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-image-keyboard-response@1.1.3"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-call-function/dist/index.browser.js"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-preload@1.1.3"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-audio-keyboard-response@2.1.1"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.3"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-instructions@1.1.4"></script>
+    <link href="https://unpkg.com/jspsych@8.2.3/css/jspsych.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+  </body>
+  <script>
+    var jsPsych = initJsPsych({
+      use_webaudio: false,
+      on_trial_start: jatos.addAbortButton,
+      on_finish: () => jatos.startNextComponent(jsPsych.data.get().json())
+    });
+   
+    var timeline = [];
+    
+    var preload = {
+      type: jsPsychPreload,
+      audio: ['sounds_Jones1999/AB_0_semitones.wav', 
+              'sounds_Jones1999/AB_2_semitones.wav',
+              'sounds_Jones1999/AB_5_semitones.wav',
+              'sounds_Jones1999/AB_10_semitones.wav']
+    };
+    timeline.unshift(preload);
+
+    var ready = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: "<p>Sind Sie bereit für die Aufgabe?</p><p>Starten Sie durch Drücken der Leertaste.</p>",
+      choices: "ALL_KEYS"
+      
+    };
+
+    var instruction = {
+      type: jsPsychInstructions,
+      pages: [
+        '<p>Herzlich Willkommen zu unserem Experiment!</p><p>Klicken Sie weiter, um fortzufahren</>',
+        '<p>Im Folgenden werden Sie in jedem Durchgang eine Reihe von Buchstaben sehen.</p><p/Ihre Aufgabe ist es, sich die Buchstaben in der präsentierten Reihenfolge zu merken.</p>',
+        '<p>Während der Aufgabe werden Sie unterschiedliche Töne über Kopfhörer hören.</p><p>Für die Aufgabe sind diese nicht relevant. Sie können die Töne einfach ignorieren.</p><p>Konzentrieren Sie sich bitte voll und ganz auf die Buchstaben.</p><p>Aufgabe verstanden?</p>'
+        ],
+      show_clickable_nav: true,
+      button_label_next: "Weiter",
+      button_label_previous: "Zurück",
+    }
+    timeline.push(instruction);
+    timeline.push(ready);
+        
+    var letter_variables = [
+      {letter: 'F'},
+      {letter: 'K'},
+      {letter: 'L'},
+      {letter: 'M'},
+      {letter: 'Q'},
+      {letter: 'R'},
+      {letter: 'S'},
+      {letter: 'T'},
+      {letter: 'V'},
+    ]
+    
+    var letter = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: function() {
+        let l = jsPsych.evaluateTimelineVariable('letter');
+        return '<div style="font-size:80px;">' + l + '</div>';
+      },
+      choices: "NO_KEYS",
+      trial_duration: 800,
+      on_finish: function(data) {
+          // store each presented letter in a simple form
+          data.presented_letter = jsPsych.evaluateTimelineVariable('letter');
+        }
+    };
+
+    var isi = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: '',
+      choices: "NO_KEYS",
+      trial_duration: 200
+    };
+    
+    var letter_sequence = {
+      timeline: [letter, isi],
+      timeline_variables: letter_variables,
+      randomize_order: true,
+      sample: {
+        type: 'without-replacement',
+        size: 9
+      }
+    }
+    
+    function getPresentedLetterString() {
+      const trials = jsPsych.data
+        .get()
+        .filterCustom(t => t.presented_letter !== undefined)
+        .values();
+    
+      return trials.slice(-9).map(t => t.presented_letter).join('');
+    }
+
+    var timeline_variables = [
+      {sound: 'sounds_Jones1999/AB_0_semitones.wav', st: ['0']},
+      {sound: 'sounds_Jones1999/AB_2_semitones.wav', st: ['2']},
+      {sound: 'sounds_Jones1999/AB_5_semitones.wav', st: ['2']},
+      {sound: 'sounds_Jones1999/AB_10_semitones.wav', st: ['10']}
+    ]
+    
+    var fixation = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: '<div style="font-size:60px;">+</div>',
+      choices: "NO_KEYS",
+      trial_duration: 2000
+    };
+    
+    var retention = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: '<div style="font-size:60px;">...</div>',
+      choices: "NO_KEYS",
+      trial_duration: 10000
+    };
+    
+    var play_audio = {
+        type: jsPsychAudioKeyboardResponse,
+        stimulus: jsPsych.timelineVariable('sound'),
+        choices: "NO_KEYS",
+        trial_ends_after_audio: false
+    };
+    
+   var start_audio = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: '<div style="font-size:60px;">+</div>',
+      choices: "NO_KEYS",
+      trial_duration: 1,
+      on_finish: function () {
+        let f = jsPsych.evaluateTimelineVariable('sound');
+        const audio = new Audio(f); // <-- EXISTIERENDE Datei
+        audio.play().then(() => {
+          console.log('Audio gestartet');
+        }).catch(err => {
+          console.error('Audio Fehler:', err);
+        });
+      }
+    };
+
+    
+    let typedLetters = "";
+    const MAX_LEN = 9;
+    let keyboardListener = null;
+    
+    var key_response = {
+      type: jsPsychHtmlKeyboardResponse,
+      data: {task: "serial-recall", condition: jsPsych.timelineVariable('st')},
+    
+      // Static initial stimulus — no reference to typedLetters
+      stimulus: `
+        <p>Geben Sie die ${MAX_LEN} Buchstaben in der präsentierten Reihenfolge ein:</p>
+        <div id="typed-display" style="font-size:36px; letter-spacing:8px; font-family:monospace;">
+          &nbsp;
+        </div>
+      `,
+    
+      choices: "NO_KEYS",
+    
+      on_load: function () {
+        // Reset state fresh every trial
+        typedLetters = "";
+    
+        if (keyboardListener !== null) {
+          jsPsych.pluginAPI.cancelKeyboardResponse(keyboardListener);
+          keyboardListener = null;
+        }
+    
+        function updateDisplay() {
+          const el = document.getElementById("typed-display");
+          if (el) el.innerHTML = typedLetters || "&nbsp;";
+        }
+    
+        keyboardListener = jsPsych.pluginAPI.getKeyboardResponse({
+          persist: true,
+          valid_responses: "ALL_KEYS",
+          callback_function: function (info) {
+            const key = info.key;
+    
+            if (/^[a-z]$/i.test(key) && typedLetters.length < MAX_LEN) {
+              typedLetters += key.toUpperCase();
+            }
+    
+            if (key === "Backspace" && typedLetters.length > 0) {
+              typedLetters = typedLetters.slice(0, -1);
+            }
+    
+            updateDisplay();
+    
+            if (typedLetters.length === MAX_LEN) {
+              jsPsych.pluginAPI.cancelKeyboardResponse(keyboardListener);
+              keyboardListener = null;
+    
+              jsPsych.finishTrial({
+                entered_letters: typedLetters
+              });
+            }
+          }
+        });
+      }
+    };
+
+   
+    var evaluate_key_response = {
+      type: jsPsychCallFunction,
+      func: function () {
+    
+        const responseTrial = jsPsych.data
+          .get()
+          .filter({ task: "serial-recall" })
+          .last(1)
+          .values()[0];
+    
+        const entered = responseTrial.entered_letters;
+        const presented = getPresentedLetterString();
+    
+        const correct = (entered === presented);
+    
+        jsPsych.data.addDataToLastTrial({
+          presented_letters: presented,
+          correct: correct
+        });
+    
+        console.log("SCORING:", { presented, entered, correct });
+      }
+    };
+
+
+    var key_feedback = {
+      type: jsPsychHtmlKeyboardResponse,
+    
+      stimulus: function () {
+        const scored = jsPsych.data
+          .get()
+          .filter({ task: "serial-recall" })
+          .last(1)
+          .values()[0];
+    
+        const presented = scored.presented_letters;
+        const entered = scored.entered_letters;
+    
+        // Count letters in correct serial position
+        let correctPositions = 0;
+        for (let i = 0; i < presented.length; i++) {
+          if (entered[i] && entered[i] === presented[i]) {
+            correctPositions++;
+          }
+        }
+    
+        // Build letter-by-letter display
+        let letterDisplay = '';
+        for (let i = 0; i < presented.length; i++) {
+          const match = entered[i] && entered[i] === presented[i];
+          const color = match ? 'green' : 'red';
+          letterDisplay += `<span style="color:${color}; font-size:36px; font-family:monospace; letter-spacing:4px; margin:0 4px;">
+            ${entered[i] || '_'}
+          </span>`;
+        }
+    
+        return `
+          <p style="font-size:28px;">
+            <strong>${correctPositions} / ${presented.length}</strong> Buchstaben an korrekter Position!
+          </p>
+          <div style="margin-top:16px;">${letterDisplay}</div>
+          <p style="color:gray; font-size:18px; margin-top:16px;">Präsentiert Buchstaben: ${presented}</p>
+        `;
+      },
+    
+      choices: "NO_KEYS",
+      trial_duration: 3000
+    };
+
+    /*
+    var key_feedback_0 = {
+      type: jsPsychHtmlKeyboardResponse,
+    
+      stimulus: function () {
+    
+        // get the most recent serial‑recall trial
+        const scored = jsPsych.data
+          .get()
+          .filter({ task: "serial-recall" })
+          .last(1)
+          .values()[0];
+    
+        return scored.correct
+          ? '<p style="color:green; font-size:40px;">Correct ✅</p>'
+          : `
+              <p style="color:red; font-size:40px;">Incorrect ❌</p>
+              <p>Presented: ${scored.presented_letters}</p>
+              <p>Your response: ${scored.entered_letters}</p>
+            `;
+      },
+    
+      choices: "NO_KEYS",
+      trial_duration: 2000
+    };
+    */
+    
+    var test_procedure = {
+      timeline: [start_audio, fixation, letter_sequence, retention, key_response, evaluate_key_response, key_feedback],
+      timeline_variables: timeline_variables,
+      randomize_order: true,
+      repetitions: 1
+    }
+    timeline.push(test_procedure)
+    
+    jatos.onLoad(() => {
+      jsPsych.run(timeline);
+    });
+
+    //jsPsych.run(timeline)
+    
+  </script>
+</html>
