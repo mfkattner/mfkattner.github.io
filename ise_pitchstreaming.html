@@ -2,7 +2,6 @@
 <html>
   <head
     <title>Serial Recall</title>
-    <script src="jatos.js"></script>
     <script src="https://unpkg.com/jspsych@8.2.3"></script>
     <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
     <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.2.0"></script>
@@ -12,6 +11,8 @@
     <script src="https://unpkg.com/@jspsych/plugin-audio-keyboard-response@2.1.1"></script>
     <script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.3"></script>
     <script src="https://unpkg.com/@jspsych/plugin-instructions@1.1.4"></script>
+    <script src="https://unpkg.com/@jspsych-contrib/plugin-pipe"></script>
+    <script src="utils.js"></script>
     <link href="https://unpkg.com/jspsych@8.2.3/css/jspsych.css" rel="stylesheet" type="text/css">
   </head>
   <body>
@@ -19,12 +20,26 @@
   <script>
     var jsPsych = initJsPsych({
       use_webaudio: false,
-      on_trial_start: jatos.addAbortButton,
-      on_finish: () => jatos.startNextComponent(jsPsych.data.get().json())
+      on_finish: function() {
+        // fires once at the very end of the experiment
+        var data = jsPsych.data.get().json();
+        jatos.submitResultData(data);  // if using JATOS
+      }
     });
    
     var timeline = [];
     
+    const subject_id = jsPsych.randomization.randomID(10);
+    const filename = `${subject_id}.csv`;
+
+    const save_data = {
+       type: jsPsychPipe,
+       action: "save",
+       experiment_id: "bERUDNtXOLmc",
+       filename: filename,
+       data_string: ()=>jsPsych.data.get().csv()
+    };
+              
     var preload = {
       type: jsPsychPreload,
       audio: ['sounds_Jones1999/AB_0_semitones.wav', 
@@ -318,11 +333,13 @@
     }
     timeline.push(test_procedure)
     
-    jatos.onLoad(() => {
+    /*jatos.onLoad(() => {
       jsPsych.run(timeline);
-    });
+    });*/
 
-    //jsPsych.run(timeline)
+    timeline.push(save_data)
+    
+    jsPsych.run(timeline)
     
   </script>
 </html>
