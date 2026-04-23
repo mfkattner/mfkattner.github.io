@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html>
-  <head
-    <title>Serial Recall</title>
+  <head>
     <script src="https://unpkg.com/jspsych@8.2.3"></script>
     <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
     <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.2.0"></script>
@@ -11,6 +10,7 @@
     <script src="https://unpkg.com/@jspsych/plugin-audio-keyboard-response@2.1.1"></script>
     <script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.3"></script>
     <script src="https://unpkg.com/@jspsych/plugin-instructions@1.1.4"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-survey-multi-choice@1.1.3"></script>
     <script src="https://unpkg.com/@jspsych-contrib/plugin-pipe"></script>
     <script src="utils.js"></script>
     <link href="https://unpkg.com/jspsych@8.2.3/css/jspsych.css" rel="stylesheet" type="text/css">
@@ -49,6 +49,81 @@
     };
     timeline.unshift(preload);
 
+    var welcome = {
+      type: jsPsychInstructions,
+      pages: ["<p>Herzlich Willkommen zu unserem Experiment!</p><p>Wir starten mit der Abfrage von wenigen personenbezogenen Daten</p><p>und werden dann die eigentliche Aufgabe im Experiment erkäutern..</p><p>Klicken Sie weiter, um fortzufahren</>"],
+      show_clickable_nav: true,
+      button_label_next: "Weiter",
+      button_label_previous: "Zurück",
+    };
+    timeline.push(welcome)
+    
+    var age = {
+      type: jsPsychSurveyText,
+      questions: [
+        {prompt: 'Wie alt sind Sie?', required: true}
+      ],
+      button_label: "Weiter",
+      on_load: function() {
+        const input = document.querySelector('input');
+        const button = document.querySelector('input[type="submit"], button[type="submit"]');
+    
+        // Only allow digits and navigation keys
+        input.addEventListener('keydown', function(e) {
+          const allowed =
+            /^[0-9]$/.test(e.key) ||
+            ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.key);
+          if (!allowed) e.preventDefault();
+        });
+    
+        // Strip non-digits on paste
+        input.addEventListener('input', function() {
+          input.value = input.value.replace(/[^0-9]/g, '');
+        });
+    
+        // Validate range on submit
+        button.addEventListener('click', function(e) {
+          const val = parseInt(input.value);
+          if (isNaN(val) || val < 18 || val > 99) {
+            e.preventDefault();
+            e.stopPropagation();
+            input.style.border = '2px solid red';
+            
+            // Show error message if not already there
+            let error = document.getElementById('age-error');
+            if (!error) {
+              error = document.createElement('p');
+              error.id = 'age-error';
+              error.style.color = 'red';
+              error.textContent = 'Bitte geben Sie ein Alter zwischen 18 und 99 ein.';
+              input.parentNode.insertBefore(error, input.nextSibling);
+            }
+          }
+        });
+      }
+    };
+    timeline.push(age);
+    
+    var gender_hand = {
+      type: jsPsychSurveyMultiChoice,
+      questions: [
+        {
+          prompt: "Geben Sie bitte Ihr Geschlecht an:", 
+          name: 'Geschlecht', 
+          options: ['weiblich', 'männlich', 'divers', 'keine Angabe'], 
+          required: true
+        }, 
+        {
+          prompt: "Welche ist Ihre dominante Hand?", 
+          name: 'Händigkeit', 
+          options: ['rechtshändig', 'linkshändig', 'beidhändig'], 
+          required: false
+        }
+      ],
+      button_label: "Weiter"
+    };
+    timeline.push(gender_hand);
+    
     var ready = {
       type: jsPsychHtmlKeyboardResponse,
       stimulus: "<p>Sind Sie bereit für die Aufgabe?</p><p>Starten Sie durch Drücken der Leertaste.</p>",
@@ -59,8 +134,7 @@
     var instruction = {
       type: jsPsychInstructions,
       pages: [
-        '<p>Herzlich Willkommen zu unserem Experiment!</p><p>Klicken Sie weiter, um fortzufahren</>',
-        '<p>Im Folgenden werden Sie in jedem Durchgang eine Reihe von Buchstaben sehen.</p><p/Ihre Aufgabe ist es, sich die Buchstaben in der präsentierten Reihenfolge zu merken.</p>',
+        '<p>Kommen wir nun zur eigentlichen Aufgabe im Experiment.</p><p>Im Folgenden werden Sie in jedem Durchgang eine Reihe von Buchstaben sehen.</p><p/Ihre Aufgabe ist es, sich die Buchstaben in der präsentierten Reihenfolge zu merken.</p>',
         '<p>Während der Aufgabe werden Sie unterschiedliche Töne über Kopfhörer hören.</p><p>Für die Aufgabe sind diese nicht relevant. Sie können die Töne einfach ignorieren.</p><p>Konzentrieren Sie sich bitte voll und ganz auf die Buchstaben.</p><p>Aufgabe verstanden?</p>'
         ],
       show_clickable_nav: true,
@@ -68,6 +142,7 @@
       button_label_previous: "Zurück",
     }
     timeline.push(instruction);
+    
     timeline.push(ready);
         
     var letter_variables = [
