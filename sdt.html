@@ -76,11 +76,11 @@
         const display = document.getElementById('level-display');
         slider.addEventListener('input', function() {
           display.textContent = slider.value;
+          selected_level = parseInt(slider.value);  // ← update here, not in on_finish
         });
       },
       on_finish: function(data) {
-        selected_level = parseInt(document.getElementById('level-slider')?.value || 50);
-        data.selected_level = selected_level;
+        data.selected_level = selected_level;  // just save to data, don't read DOM
       }
     };
     timeline.push(select_level);
@@ -162,9 +162,16 @@
     };
     
     var test_procedure = {
+      on_start: function() {
+        console.log('selected_level at test start:', selected_level);
+        test_procedure.timeline_variables = [
+          { sound: `sdtdemo/NdddS${selected_level}.wav`, corrAns: ['j'] },
+          { sound: 'sdtdemo/Nddd___.wav', corrAns: ['n'] }
+        ];
+      },
       timeline: [fixation, play_audio],
       timeline_variables: [
-        { sound: `sdtdemo/NdddS${selected_level}.wav`, corrAns: ['j'] },
+        { sound: 'sdtdemo/NdddS50.wav', corrAns: ['j'] },
         { sound: 'sdtdemo/Nddd___.wav', corrAns: ['n'] }
       ],
       randomize_order: true,
