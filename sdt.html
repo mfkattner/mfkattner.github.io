@@ -37,6 +37,8 @@
         return jsPsych.data
           .get()
           .filter({ task: 'sdt-trial' })
+          .ignore('trial_type')
+          .ignore('trial_index')
           .csv();
       }
     };
@@ -152,10 +154,10 @@
           trialCounter++;
           data.trial_number = trialCounter;
           data.stimulus = jsPsych.evaluateTimelineVariable('sound');
-          data.response = data.response;  // 'j' or 'n'
           data.correct_answer = jsPsych.evaluateTimelineVariable('corrAns')[0];
           data.correct = data.response === jsPsych.evaluateTimelineVariable('corrAns')[0];
           data.task = 'sdt-trial';
+          console.log(data); 
         }
     };
     
