@@ -20,12 +20,7 @@
   </body>
   <script>
     var jsPsych = initJsPsych({
-      use_webaudio: false,
-      on_finish: function() {
-        // fires once at the very end of the experiment
-        var data = jsPsych.data.get().json();
-        jatos.submitResultData(data);  // if using JATOS
-      }
+      use_webaudio: false
     });
    
     var timeline = [];
@@ -163,7 +158,7 @@
     var instruction = {
       type: jsPsychInstructions,
       pages: [
-        '<p>Kommen wir nun zur eigentlichen Aufgabe im Experiment.</p><p>Im Folgenden werden Sie in jedem Durchgang eine Reihe von Buchstaben sehen.</p><p/Ihre Aufgabe ist es, sich die Buchstaben in der präsentierten Reihenfolge zu merken.</p>',
+        '<p>Kommen wir nun zur eigentlichen Aufgabe im Experiment.</p><p>Im Folgenden werden Sie in jedem Durchgang eine Reihe von Buchstaben sehen.</p><p>Ihre Aufgabe ist es, sich die Buchstaben in der präsentierten Reihenfolge zu merken.</p>',
         '<p>Während der Aufgabe werden Sie unterschiedliche Töne über Kopfhörer hören.</p><p>Für die Aufgabe sind diese nicht relevant. Sie können die Töne einfach ignorieren.</p><p>Konzentrieren Sie sich bitte voll und ganz auf die Buchstaben.</p><p>Aufgabe verstanden?</p>'
         ],
       show_clickable_nav: true,

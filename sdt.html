@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://unpkg.com/jspsych@8.2.3"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-button-response@2.0.0"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-image-keyboard-response@1.1.3"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-call-function/dist/index.browser.js"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-preload@2.1.0"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-audio-keyboard-response@2.1.1"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.3"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-instructions@1.1.4"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-survey-multi-choice@1.1.3"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-audio-button-response@2.0.0"></script>
+    <script src="https://unpkg.com/@jspsych-contrib/plugin-pipe"></script>
+    <script src="utils.js"></script>
+    <link href="https://unpkg.com/jspsych@8.2.3/css/jspsych.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+  </body>
+  <script>
+    var jsPsych = initJsPsych({
+      use_webaudio: false
+    });
+   
+    var timeline = [];
+    
+    const subject_id = jsPsych.randomization.randomID(10);
+    const filename = `${subject_id}.csv`;
+
+    const save_data = {
+      type: jsPsychPipe,
+      action: "save",
+      experiment_id: "4zJU81B9kIri",
+      filename: filename,
+      data_string: function() {
+        return jsPsych.data
+          .get()
+          .filter({ task: 'sdt-trial' })
+          .csv();
+      }
+    };
+              
+    var preload = {
+      type: jsPsychPreload,
+      audio: ['sdtdemo/Nddd___.wav', 
+              'sdtdemo/NdddS10.wav',
+              'sdtdemo/NdddS20.wav',
+              'sdtdemo/NdddS30.wav',
+              'sdtdemo/NdddS40.wav',
+              'sdtdemo/NdddS50.wav',
+              'sdtdemo/NdddS60.wav',
+              'sdtdemo/NdddS70.wav',
+              'sdtdemo/NdddS80.wav',
+              'sdtdemo/NdddS90.wav',
+              'sdtdemo/NdddS100.wav',]
+    };
+    timeline.unshift(preload);
+
+    let selected_level = 50; // default
+    
+    var select_level = {
+      type: jsPsychHtmlButtonResponse,
+      stimulus: `
+        <p>Bitte wählen Sie einen Signalpegel zwischen 10 und 100:</p>
+        <input type="range" id="level-slider" min="10" max="100" step="10" value="50"
+               style="width:400px;">
+        <p>Gewählter Pegel: <span id="level-display">50</span></p>
+      `,
+      choices: ['Weiter'],
+      on_load: function() {
+        const slider = document.getElementById('level-slider');
+        const display = document.getElementById('level-display');
+        slider.addEventListener('input', function() {
+          display.textContent = slider.value;
+        });
+      },
+      on_finish: function(data) {
+        selected_level = parseInt(document.getElementById('level-slider')?.value || 50);
+        data.selected_level = selected_level;
+      }
+    };
+    timeline.push(select_level);
+
+
+    var instruction = {
+      type: jsPsychInstructions,
+      pages: [
+        '<p>Herzlich Willkommen zu unserem spannenden Demoexperiment!</p><p>Wir werden gleich 36 Durchgänge durchlaufen.</p><p>Bitte geben Sie jeweils an, ob Sie das Signal (Gitarrenakkord) im Hintergrundrauschen hören oder nicht.</p>',
+        '<p>Aufgabe verstanden? Sind Sie bereit?</p>'
+        ],
+      show_clickable_nav: true,
+      button_label_next: "Weiter",
+      button_label_previous: "Zurück",
+    }
+    timeline.push(instruction);
+    
+    
+    var fixation = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: '<div style="font-size:60px;">!</div>',
+      choices: "NO_KEYS",
+      trial_duration: 1000
+    };
+    
+    
+    var play_audio = {
+        type: jsPsychAudioKeyboardResponse,
+        stimulus: jsPsych.timelineVariable('sound'),
+        choices: ["j","n"],
+        prompt: function() {
+          const sound = jsPsych.evaluateTimelineVariable('sound');
+          return `
+            <p>Hören Sie das Signal (J) oder nicht (N)?</p>
+            <p style="color:gray; font-size:14px;">${sound}</p>
+          `;
+        },
+        trial_ends_after_audio: false,
+        on_finish: function(data) {
+          data.stimulus = jsPsych.evaluateTimelineVariable('sound');
+          data.response = data.response;  // 'j' or 'n'
+          data.correct_answer = jsPsych.evaluateTimelineVariable('corrAns')[0];
+          data.correct = data.response === jsPsych.evaluateTimelineVariable('corrAns')[0];
+          data.task = 'sdt-trial';
+        }
+    };
+    
+    var test_procedure = {
+      timeline: [fixation, play_audio],
+      timeline_variables: [
+        { sound: `sdtdemo/NdddS${selected_level}.wav`, corrAns: ['j'] },
+        { sound: 'sdtdemo/Nddd___.wav', corrAns: ['n'] }
+      ],
+      randomize_order: true,
+      repetitions: 18
+    };
+    timeline.push(test_procedure);
+
+    /*var timeline_variables = [
+      {sound: 'sdtdemo/NdddS50.wav', corrAns: ['j']},
+      {sound: 'sdtdemo/Nddd___.wav', corrAns: ['n']}
+    ]
+    
+    var test_procedure = {
+      timeline: [fixation, play_audio],
+      timeline_variables: timeline_variables,
+      randomize_order: true,
+      repetitions: 18
+    }
+    timeline.push(test_procedure)
+    */
+    
+    timeline.push(save_data)
+    
+    jsPsych.run(timeline)
+    
+  </script>
+</html>
