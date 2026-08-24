@@ -6,12 +6,11 @@
     <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.2.0"></script>
     <script src="https://unpkg.com/@jspsych/plugin-image-keyboard-response@1.1.3"></script>
     <script src="https://unpkg.com/@jspsych/plugin-call-function/dist/index.browser.js"></script>
-    <script src="https://unpkg.com/@jspsych/plugin-preload@2.1.0"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-preload@1.1.3"></script>
     <script src="https://unpkg.com/@jspsych/plugin-audio-keyboard-response@2.1.1"></script>
     <script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.3"></script>
     <script src="https://unpkg.com/@jspsych/plugin-instructions@1.1.4"></script>
     <script src="https://unpkg.com/@jspsych/plugin-survey-multi-choice@1.1.3"></script>
-    <script src="https://unpkg.com/@jspsych/plugin-audio-button-response@2.0.0"></script>
     <script src="https://unpkg.com/@jspsych-contrib/plugin-pipe"></script>
     <script src="utils.js"></script>
     <link href="https://unpkg.com/jspsych@8.2.3/css/jspsych.css" rel="stylesheet" type="text/css">
@@ -20,7 +19,12 @@
   </body>
   <script>
     var jsPsych = initJsPsych({
-      use_webaudio: false
+      use_webaudio: false,
+      on_finish: function() {
+        // fires once at the very end of the experiment
+        var data = jsPsych.data.get().json();
+        jatos.submitResultData(data);  // if using JATOS
+      }
     });
    
     var timeline = [];
@@ -120,45 +124,17 @@
     };
     timeline.push(gender_hand);
     
-    var sona = {
-      type: jsPsychSurveyText,
-      questions: [
-        {prompt: 'Wenn Sie SONA-Credits erhalten wollen, geben Sie hier bitte Ihren Namen oder Ihren ID-Code an:'}
-      ]
-    }
-    timeline.push(sona);
-    
-    
-    
-    var ready_audio = {
+    var ready = {
       type: jsPsychHtmlKeyboardResponse,
-      stimulus: "<p>Weiter geht es nun mit einem Audio-Test. Bitte setzen Sie dafür jetzt Ihre Kopfhörer auf!</p><p>Starten Sie durch Drücken der Leertaste.</p>",
+      stimulus: "<p>Sind Sie bereit für die Aufgabe?</p><p>Starten Sie durch Drücken der Leertaste.</p>",
       choices: "ALL_KEYS"
       
     };
-    timeline.push(ready_audio);
-    
-    var check_audio = {
-      type: jsPsychAudioButtonResponse,
-      stimulus: 'sounds_Jones1999/SHEEP.WAV',
-      choices: ['Löwe', 'Elefant', 'Schaf', 'Hund'],
-      prompt: `
-        <p>Welches Tier hören Sie?</p>
-        <button onclick="document.getElementById('replay-audio').play()" 
-                style="margin-bottom:20px; padding:8px 16px; cursor:pointer;">
-          🔊 Nochmal abspielen
-        </button>
-        <audio id="replay-audio" src="sounds_Jones1999/SHEEP.wav"></audio>
-         `,
-      response_allowed_while_playing: false
-    };
-    timeline.push(check_audio);
-     
-     
+
     var instruction = {
       type: jsPsychInstructions,
       pages: [
-        '<p>Kommen wir nun zur eigentlichen Aufgabe im Experiment.</p><p>Im Folgenden werden Sie in jedem Durchgang eine Reihe von Buchstaben sehen.</p><p>Ihre Aufgabe ist es, sich die Buchstaben in der präsentierten Reihenfolge zu merken.</p>',
+        '<p>Kommen wir nun zur eigentlichen Aufgabe im Experiment.</p><p>Im Folgenden werden Sie in jedem Durchgang eine Reihe von Buchstaben sehen.</p><p/Ihre Aufgabe ist es, sich die Buchstaben in der präsentierten Reihenfolge zu merken.</p>',
         '<p>Während der Aufgabe werden Sie unterschiedliche Töne über Kopfhörer hören.</p><p>Für die Aufgabe sind diese nicht relevant. Sie können die Töne einfach ignorieren.</p><p>Konzentrieren Sie sich bitte voll und ganz auf die Buchstaben.</p><p>Aufgabe verstanden?</p>'
         ],
       show_clickable_nav: true,
@@ -167,13 +143,6 @@
     }
     timeline.push(instruction);
     
-
-    var ready = {
-      type: jsPsychHtmlKeyboardResponse,
-      stimulus: "<p>Sind Sie bereit für die Aufgabe?</p><p>Bitte tragen Sie die Kopfhörer während des gesamten Versuchs, damit Sie die Töne gut hören.</p><p>Starten Sie durch Drücken der Leertaste.</p>",
-      choices: "ALL_KEYS"
-      
-    };
     timeline.push(ready);
         
     var letter_variables = [
@@ -231,7 +200,7 @@
     var timeline_variables = [
       {sound: 'sounds_Jones1999/AB_0_semitones.wav', st: ['0']},
       {sound: 'sounds_Jones1999/AB_2_semitones.wav', st: ['2']},
-      {sound: 'sounds_Jones1999/AB_5_semitones.wav', st: ['2']},
+      {sound: 'sounds_Jones1999/AB_5_semitones.wav', st: ['5']},
       {sound: 'sounds_Jones1999/AB_10_semitones.wav', st: ['10']}
     ]
     
@@ -435,7 +404,7 @@
       timeline: [start_audio, fixation, letter_sequence, retention, key_response, evaluate_key_response, key_feedback],
       timeline_variables: timeline_variables,
       randomize_order: true,
-      repetitions: 10
+      repetitions: 1
     }
     timeline.push(test_procedure)
     
