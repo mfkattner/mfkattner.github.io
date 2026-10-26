@@ -76,7 +76,7 @@
         const display = document.getElementById('level-display');
         slider.addEventListener('input', function() {
           display.textContent = slider.value;
-          selected_level = parseInt(slider.value);  // ← update here, not in on_finish
+          selected_level = parseInt(slider.value);  // update here, not in on_finish
         });
       },
       on_finish: function(data) {
@@ -139,28 +139,34 @@
     const totalTrials = 36;
 
     var play_audio = {
-        type: jsPsychAudioKeyboardResponse,
-        stimulus: jsPsych.timelineVariable('sound'),
-        choices: ["j","n"],
-        prompt: function() {
-          const sound = jsPsych.evaluateTimelineVariable('sound');
-          return `
-            <p>Hören Sie das Signal (J) oder nicht (N)?</p>
-            <p style="color:gray; font-size:14px;">Durchgang ${trialCounter + 1} von ${totalTrials}</p>
-          `;
-        },
-        trial_ends_after_audio: false,
-        on_finish: function(data) {
-          trialCounter++;
-          data.trial_number = trialCounter;
-          data.stimulus = jsPsych.evaluateTimelineVariable('sound');
-          data.correct_answer = jsPsych.evaluateTimelineVariable('corrAns')[0];
-          data.correct = data.response === jsPsych.evaluateTimelineVariable('corrAns')[0];
-          data.task = 'sdt-trial';
-          console.log(data); 
-        }
-    };
+      type: jsPsychAudioButtonResponse,
+      stimulus: jsPsych.timelineVariable('sound'),
+      choices: ["Ja (Signal)", "Nein (kein Signal)"],
+      prompt: function() {
+        return `
+          <p>Hören Sie das Signal?</p>
+          <p style="color:gray; font-size:14px;">Durchgang ${trialCounter + 1} von ${totalTrials}</p>
+        `;
+      },
+      trial_ends_after_audio: false,
+      response_allowed_while_playing: true, // set to false if buttons should only work after the audio ends
+      on_finish: function(data) {
+        trialCounter++;
+        data.trial_number = trialCounter;
+        data.stimulus = jsPsych.evaluateTimelineVariable('sound');
     
+        // button responses are indices: 0 = first button, 1 = second button
+        const corrAns = jsPsych.evaluateTimelineVariable('corrAns')[0];
+        const responseKey = data.response === 0 ? "j" : "n";
+    
+        data.correct_answer = corrAns;
+        data.response_key = responseKey;
+        data.correct = responseKey === corrAns;
+        data.task = 'sdt-trial';
+        console.log(data);
+      }
+    };
+  
     var test_procedure = {
       on_start: function() {
         console.log('selected_level at test start:', selected_level);
@@ -436,8 +442,8 @@
       choices: ['Beenden']
     };
     
-    timeline.push(sdt_feedback_roc);
     timeline.push(save_data);
+    timeline.push(sdt_feedback_roc);
     
     jsPsych.run(timeline)
     
