@@ -144,6 +144,29 @@ async function loadBuffer(url) {
   return BUFFERS[url];
 }
 
+async function loadBufferRetry(url, tries = 3) {
+  for (let i = 1; i <= tries; i++) {
+    try { return await loadBuffer(url); }
+    catch (e) {
+      if (i === tries) throw e;
+      await new Promise(r => setTimeout(r, 500 * i));
+    }
+  }
+}
+
+// load at most `concurrency` files at the same time
+async function loadAll(urls, onProgress, concurrency = 6) {
+  let next = 0, done = 0;
+  async function worker() {
+    while (next < urls.length) {
+      const u = urls[next++];
+      await loadBufferRetry(u);
+      onProgress(++done);
+    }
+  }
+  await Promise.all(Array.from({ length: concurrency }, worker));
+}
+
 function playBuffer(url, start, gain) {
   const ctx = getCtx();
   const src = ctx.createBufferSource();
