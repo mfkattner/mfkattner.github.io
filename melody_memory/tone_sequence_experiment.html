@@ -379,8 +379,7 @@ async function main() {
   } catch (err) {
     body.innerHTML = `<p style="color:#b00"><b>Sound loading failed.</b><br>${err.message}<br><br>
       Browsers block loading files from a local folder when the page is opened directly
-      (file://). Run a small local web server in this folder, e.g.
-      <code>python3 -m http.server</code>, and open <code>http://localhost:8000/</code>.</p>`;
+      (file://).</p>`;
     return;
   }
 
