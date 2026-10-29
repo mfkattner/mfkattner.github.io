@@ -155,7 +155,7 @@ async function loadBufferRetry(url, tries = 3) {
 }
 
 // load at most `concurrency` files at the same time
-async function loadAll(urls, onProgress, concurrency = 6) {
+async function loadAll(urls, onProgress, concurrency = 1) {
   let next = 0, done = 0;
   async function worker() {
     while (next < urls.length) {
