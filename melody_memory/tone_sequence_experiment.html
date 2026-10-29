@@ -132,6 +132,12 @@ const BUFFERS = {};
 
 async function loadBuffer(url) {
   if (BUFFERS[url]) return BUFFERS[url];
+  // silent trials: generate an empty mono buffer instead of loading a file
+  if (url === SILENCE_FILE) {
+    const ctx = getCtx();
+    BUFFERS[url] = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);   // 1 s of silence
+    return BUFFERS[url];
+  }
   let resp;
   try {
     resp = await fetch(url);
