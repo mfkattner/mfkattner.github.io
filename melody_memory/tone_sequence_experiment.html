@@ -132,7 +132,12 @@ const BUFFERS = {};
 
 async function loadBuffer(url) {
   if (BUFFERS[url]) return BUFFERS[url];
-  const resp = await fetch(url);
+  let resp;
+  try {
+    resp = await fetch(url);
+  } catch (e) {
+    throw new Error(`Could not load ${url} (${e.message})`);
+  }
   if (!resp.ok) throw new Error(`Could not load ${url} (HTTP ${resp.status})`);
   const arr = await resp.arrayBuffer();
   BUFFERS[url] = await getCtx().decodeAudioData(arr);
