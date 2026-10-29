@@ -377,9 +377,9 @@ async function main() {
       document.getElementById('loading').textContent = `Loading sounds… ${done}/${urls.length}`;
     })));
   } catch (err) {
-    body.innerHTML = `<p style="color:#b00"><b>Sound loading failed.</b><br>${err.message}<br><br>
-      Browsers block loading files from a local folder when the page is opened directly
-      (file://).</p>`;
+    body.innerHTML = `<p style="color:#b00"><b>Die Klänge konnten nicht geladen werden.</b><br>
+    Bitte deaktivieren Sie Browser-Erweiterungen (z. B. Werbeblocker) für diese Seite oder
+    versuchen Sie es mit einem anderen Browser (z. B. Chrome oder Edge) und laden Sie die Seite neu.</p>`;
     return;
   }
 
@@ -412,7 +412,7 @@ async function main() {
       <div style="max-width:800px; margin:auto; text-align:left; max-height:70vh; overflow-y:auto; padding:0 10px;">
         <h2>Teilnahmeinformation</h2>
         <p><b>Titel der Studie:</b> Melodiengedächtnis</p>
-        <p><b>Durchführung:</b> Prof. Dr. Florian Kattner, Institute for Mind, Brain and Behavior, Health and Medical University]</p>
+        <p><b>Durchführung:</b> Prof. Dr. Florian Kattner, Institute for Mind, Brain and Behavior, Health and Medical University, Olympischer Weg 1, 14471 Potsdam</p>
         <p><b>Worum geht es?</b> In dieser Studie untersuchen wir das Gedächtnis für Tonfolgen.
            Sie hören Folgen von Klaviertönen und spielen sie nach einer kurzen Pause nach.
            Dabei hören Sie zum Teil auch weitere Geräusche, die Sie ignorieren sollen.</p>
