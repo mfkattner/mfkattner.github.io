@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Tone sequence recall</title>
+  <script src="https://unpkg.com/jspsych@7.3.4"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.3"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.2.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-instructions@1"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-survey-text@1"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-survey-multi-choice@1"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-audio-button-response@1"></script>
+  <script src="https://unpkg.com/@jspsych/extension-pipe@0.2.0"></script>
+  <script src="https://unpkg.com/@jspsych-contrib/plugin-pipe"></script>
+  <link rel="stylesheet" href="https://unpkg.com/jspsych@7.3.4/css/jspsych.css">
+  <style>
+    .recall-btn {
+      display: block; width: 180px; height: 70px; margin: 12px auto;
+      font-size: 22px; cursor: pointer; border: 2px solid #444;
+      border-radius: 10px; background: #f3f3f3;
+    }
+    .recall-btn:active { background: #cde; }
+    .progress-dots { font-size: 28px; letter-spacing: 8px; margin: 10px 0 20px; }
+    .fixation { font-size: 60px; }
+  </style>
+</head>
+<body></body>
+<script>
+/* =====================================================================
+   CONFIGURATION
+   ===================================================================== */
+const CONFIG = {
+  n_tones: 7,                 // tones per sequence
+  tone_dur: 0.500,            // s, duration of each target tone
+  isi: 0.300,                 // s, silence between tones (SOA = tone_dur + isi)
+  retention_ms: 0,            // retention interval (after sound)
+  trials_per_condition: 7,    // experimental trials per irrelevant-sound condition
+  n_practice: 2,              // practice trials (always quiet)
+  sound_dir: 'sound/',        // folder with the irrelevant-sound wav files
+  target_gain: 0.30,          // volume of target tones
+  distractor_gain: 1.0,       // volume of the wav files (1 = as recorded)
+  click_feedback: true,       // play the corresponding tone when a button is clicked
+  feedback_dur: 0.400,         // s, duration of the feedback tone
+  score_feedback: 'all',      // show number correct after recall: 'all', 'practice' or 'none'
+  score_feedback_ms: 2000     // how long the score is shown
+};
+
+// Animal sounds for the audio test (file name must match your files exactly)
+const ANIMALS = [
+  { file: 'test_sounds/DOG.WAV',   label: 'Hund'   },
+  { file: 'test_sounds/CAT.WAV',   label: 'Katze'  },
+  { file: 'test_sounds/FROG.WAV',  label: 'Frosch' },
+  { file: 'test_sounds/SHEEP.WAV', label: 'Schaf'  }
+];
+let currentAnimal = null;
+let lastCorrect = true;
+
+function playCurrentAnimal(delay = 0) {
+  getCtx().resume().then(() =>
+    playBuffer(currentAnimal.file, getCtx().currentTime + delay, 1));
+}
+
+// Irrelevant-sound conditions = type x material (+ quiet)
+const CONDITIONS = [
+  { name: 'quiet',            type: 'quiet',    material: 'none'   },
+  { name: 'steady_flute',     type: 'steady',   material: 'flute'  },
+  //{ name: 'changing_flute',   type: 'changing', material: 'flute'  },
+  { name: 'random_flute',     type: 'random',   material: 'flute'  },
+  { name: 'steady_speech',    type: 'steady',   material: 'speech' },
+  //{ name: 'changing_speech',  type: 'changing', material: 'speech' },
+  { name: 'random_speech',    type: 'random',   material: 'speech' }
+];
+
+// Sequence codes of the wav files in /sound (file = <type>_<material>_<code>.wav)
+const SOUND_CODES = {
+  steady_flute:    ['AAAAAAA','CCCCCCC','DDDDDDD','EEEEEEE','FFFFFFF','GGGGGGG','HHHHHHH'],
+  changing_flute:  ['AHCDEFG','CDEFGAH','DEFGAHC','EFGAHCD','FGAHCDE','GAHCDEF','HCDEFGA'],
+  random_flute:    ['AAEGEEE','ACEHFEA','AEEAGAE','AFGDHFE','AGCAGAF','CAAGAEH','CAEDCHA','CDDFDHD',
+                    'CEACGDF','CGADGAC','DCEDGAC','DCFFHHH','DEHAHFG','DFGACDH','DGCDFDA','DGECCHA',
+                    'ECHDGEH','EDFFAAH','EECADDA','EEDFHGE','FACHHDG','FADCFAE','FAEFCHA','FCAFEDG',
+                    'FDFGDHH','FEHFFEF','FGAFHCE','FHACAEA','FHAEAGC','FHHCECA','GADAFDC','GCDAEGG',
+                    'GGHFEDE','GHFDCFC','HADFHCG','HCGDCGD','HGDDFHD','HGFAHFA','HHCFDFA','HHFHHGE'],
+  steady_speech:   ['AAAAAAA','BBBBBBB','CCCCCCC','DDDDDDD','EEEEEEE','FFFFFFF','GGGGGGG'],
+  changing_speech: ['ABCDEFG','BCDEFGA','CDEFGAB','DEFGABC','EFGABCD','FGABCDE','GABCDEF'],
+  random_speech:   ['ABBDBGB','ACFAEBD','AEFBEFA','AFCBAGF','AFFEFCG','BACBEFA','BADDGGG','BCGFGDE',
+                    'BDEFABG','BEABDBF','BECAAGF','CAGBECG','CBDDFFG','CCAFBBF','CCBDGEC','DAFDCBE',
+                    'DBDEBGG','DCGDDCD','DEFDGAC','DFAGGBE','DFBADFC','DFCDAGF','DGFAFCF','DGFCFEA',
+                    'DGGACAF','EABFCEE','EEGDCBC','EFBFDBA','EGDBADA','FACGDCF','FCCFEFC','FDEBGDC',
+                    'FEAFEFD','FFCECCC','GAEBAEB','GEBBDGB','GEDFGDF','GFBDGAE','GGADBDF','GGDGGEC']
+};
+
+const SILENCE_FILE = CONFIG.sound_dir + 'silence.wav';   // played in quiet trials
+
+function soundFile(cond, code) {
+  return `${CONFIG.sound_dir}${cond.type}_${cond.material}_${code}.wav`;
+}
+
+// Target tones (C4, E4, G4). Response buttons: low = C, mid = E, high = G
+const TONES = [
+  { note: 'C', freq: 261.63, file: 'piano/c1.wav', button: 'low'  },
+  { note: 'E', freq: 329.63, file: 'piano/e1.wav', button: 'mid'  },
+  { note: 'G', freq: 392.00, file: 'piano/g1.wav', button: 'high' }
+];
+
+/* =====================================================================
+   AUDIO HELPERS (Web Audio API, sample-accurate scheduling)
+   ===================================================================== */
+let audioCtx = null;
+function getCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function scheduleTone(freq, start, dur, type, gain) {
+  const ctx = getCtx();
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  const ramp = 0.01; // 10 ms on/off ramps to avoid clicks
+  osc.type = type;
+  osc.frequency.value = freq;
+  g.gain.setValueAtTime(0, start);
+  g.gain.linearRampToValueAtTime(gain, start + ramp);
+  g.gain.setValueAtTime(gain, start + dur - ramp);
+  g.gain.linearRampToValueAtTime(0, start + dur);
+  osc.connect(g).connect(ctx.destination);
+  osc.start(start);
+  osc.stop(start + dur + 0.02);
+}
+
+// Decoded wav files, keyed by URL
+const BUFFERS = {};
+
+async function loadBuffer(url) {
+  if (BUFFERS[url]) return BUFFERS[url];
+  // silent trials: generate an empty mono buffer instead of loading a file
+  if (url === SILENCE_FILE) {
+    const ctx = getCtx();
+    BUFFERS[url] = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);   // 1 s of silence
+    return BUFFERS[url];
+  }
+  let resp;
+  try {
+    resp = await fetch(url);
+  } catch (e) {
+    throw new Error(`Could not load ${url} (${e.message})`);
+  }
+  if (!resp.ok) throw new Error(`Could not load ${url} (HTTP ${resp.status})`);
+  const arr = await resp.arrayBuffer();
+  BUFFERS[url] = await getCtx().decodeAudioData(arr);
+  return BUFFERS[url];
+}
+
+async function loadBufferRetry(url, tries = 3) {
+  for (let i = 1; i <= tries; i++) {
+    try { return await loadBuffer(url); }
+    catch (e) {
+      if (i === tries) throw e;
+      await new Promise(r => setTimeout(r, 500 * i));
+    }
+  }
+}
+
+// load at most `concurrency` files at the same time
+async function loadAll(urls, onProgress, concurrency = 1) {
+  let next = 0, done = 0;
+  async function worker() {
+    while (next < urls.length) {
+      const u = urls[next++];
+      await loadBufferRetry(u);
+      onProgress(++done);
+    }
+  }
+  await Promise.all(Array.from({ length: concurrency }, worker));
+}
+
+function playBuffer(url, start, gain) {
+  const ctx = getCtx();
+  const src = ctx.createBufferSource();
+  const g = ctx.createGain();
+  src.buffer = BUFFERS[url];
+  g.gain.value = gain;
+  src.connect(g).connect(ctx.destination);
+  src.start(start);
+}
+
+/* =====================================================================
+   SEQUENCE GENERATION
+   ===================================================================== */
+// Random with replacement, no immediate repetition (indices into TONES)
+function makeSequence(n) {
+  const seq = [jsPsych.randomization.randomInt(0, TONES.length - 1)];
+  while (seq.length < n) {
+    const x = jsPsych.randomization.randomInt(0, TONES.length - 1);
+    if (x !== seq[seq.length - 1]) seq.push(x);
+  }
+  return seq;
+}
+
+// File list for one condition: shuffled pool, repeated if more trials than files
+function fileListFor(cond, nTrials) {
+  const codes = SOUND_CODES[cond.name];
+  let list = [];
+  while (list.length < nTrials) list = list.concat(jsPsych.randomization.shuffle(codes));
+  return list.slice(0, nTrials).map(c => soundFile(cond, c));
+}
+
+/* =====================================================================
+   CUSTOM PLUGIN: recall by clicking high / mid / low buttons
+   ===================================================================== */
+const RecallTonesPlugin = (function () {
+  const info = {
+    name: 'recall-tones',
+    parameters: {
+      sequence: { type: jsPsychModule.ParameterType.INT, array: true, default: undefined },
+      n_tones:  { type: jsPsychModule.ParameterType.INT, default: 7 },
+      click_feedback: { type: jsPsychModule.ParameterType.BOOL, default: false }
+    }
+  };
+
+  class Plugin {
+    constructor(jsPsych) { this.jsPsych = jsPsych; }
+
+    trial(display_element, trial) {
+      const responses = [];
+      const rts = [];
+      const t0 = performance.now();
+      let last = t0;
+
+      display_element.innerHTML = `
+        <p>Spielen Sie die Melodie nach indem Sie die Töne der Reihe nach anklicken:</p>
+        <div class="progress-dots" id="dots">${'○'.repeat(trial.n_tones)}</div>
+        <button class="recall-btn" data-b="high">hoch</button>
+        <button class="recall-btn" data-b="mid">mittel</button>
+        <button class="recall-btn" data-b="low">tief</button>`;
+
+      const update = () => {
+        display_element.querySelector('#dots').textContent =
+          '●'.repeat(responses.length) + '○'.repeat(trial.n_tones - responses.length);
+      };
+
+      const buttons = display_element.querySelectorAll('.recall-btn');
+      const handler = (ev) => {
+        const b = ev.currentTarget.dataset.b;
+        const now = performance.now();
+        responses.push(b);
+        rts.push(Math.round(now - last));
+        last = now;
+
+        // Play the tone belonging to the clicked button
+        if (trial.click_feedback) {
+          const tone = TONES.find(t => t.button === b);
+          // scheduleTone(tone.freq, getCtx().currentTime, CONFIG.feedback_dur, 'sine', CONFIG.target_gain);  // with generated pure tones
+          playBuffer(tone.file, getCtx().currentTime, CONFIG.target_gain);  // play piano tone during recall
+        }
+        update();
+
+        if (responses.length === trial.n_tones) {
+          buttons.forEach(btn => (btn.disabled = true));
+          setTimeout(() => finish(), 300 + (trial.click_feedback ? CONFIG.feedback_dur * 1000 : 0));
+        }
+      };
+      buttons.forEach(btn => btn.addEventListener('click', handler));
+
+      const finish = () => {
+        const target = trial.sequence.map(i => TONES[i].button);
+        const correct = responses.map((r, i) => r === target[i]);
+        this.jsPsych.finishTrial({
+          target_buttons: target.join(','),
+          target_notes: trial.sequence.map(i => TONES[i].note).join(''),
+          response_buttons: responses.join(','),
+          rt_per_click: rts.join(','),
+          correct_per_position: correct.map(Number).join(','),
+          n_correct: correct.filter(Boolean).length,
+          all_correct: correct.every(Boolean),
+          total_time: Math.round(performance.now() - t0)
+        });
+      };
+    }
+  }
+  Plugin.info = info;
+  return Plugin;
+})();
+
+/* =====================================================================
+   EXPERIMENT
+   ===================================================================== */
+const jsPsych = initJsPsych({
+  on_finish: () => jsPsych.data.displayData('csv')
+  // To save instead: jsPsych.data.get().localSave('csv', 'tone_data.csv');
+});
+
+const SOA = CONFIG.tone_dur + CONFIG.isi;
+const seqDuration = (CONFIG.n_tones - 1) * SOA + CONFIG.tone_dur;
+let PRESENT_MS = 0;   // set in main() once the wav files are loaded
+
+function makeTrial(cond, file, phase) {
+  const sequence = makeSequence(CONFIG.n_tones);
+  const common = { phase, condition: cond.name, sound_type: cond.type,
+                   sound_material: cond.material, sound_file: file || 'none' };
+
+  // 1) Presentation: target tones + simultaneous irrelevant sound (wav)
+  const present = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: '<div class="fixation">+</div>',
+    choices: 'NO_KEYS',
+    // identical presentation window for ALL trials (quiet, practice, sound)
+    trial_duration: () => PRESENT_MS,
+    on_load: () => {
+      const ctx = getCtx();
+      const t0 = ctx.currentTime + 0.1;
+      if (file) playBuffer(file, t0, CONFIG.distractor_gain);   // irrelevant sound
+      sequence.forEach((idx, i) => {
+        // scheduleTone(TONES[idx].freq, t0 + i * SOA, CONFIG.tone_dur, 'sine', CONFIG.target_gain); // with generated pure tones
+        playBuffer(TONES[idx].file, t0 + i * SOA, CONFIG.target_gain);  // play piano tone
+      });
+    },
+    data: { ...common, stage: 'presentation',
+            sequence_notes: sequence.map(i => TONES[i].note).join('') }
+  };
+
+  // 2) Retention interval (silent)
+  const retention = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: '<div class="fixation">+</div>',
+    choices: 'NO_KEYS',
+    trial_duration: CONFIG.retention_ms,
+    data: { ...common, stage: 'retention' }
+  };
+
+  // 3) Recall
+  const recall = {
+    type: RecallTonesPlugin,
+    sequence: sequence,
+    n_tones: CONFIG.n_tones,
+    click_feedback: CONFIG.click_feedback,
+    data: { ...common, stage: 'recall' }
+  };
+
+  // 4) Feedback: number of correct tones (position-wise)
+  const feedback = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: () => {
+      const n = jsPsych.data.get().last(1).values()[0].n_correct;
+      return `<p style="font-size:28px">${n} von ${CONFIG.n_tones} Tönen richtig erinnert!</p>`;
+    },
+    choices: 'NO_KEYS',
+    trial_duration: CONFIG.score_feedback_ms,
+    data: { ...common, stage: 'feedback' }
+  };
+
+  const showScore = CONFIG.score_feedback === 'all' ||
+                    (CONFIG.score_feedback === 'practice' && phase === 'practice');
+  if (showScore) {
+    return [present, retention, recall, feedback];
+  } else {
+    return [present, retention, recall];
+  }
+}
+
+async function main() {
+  const body = document.body;
+  body.innerHTML = '<p id="loading">Loading sounds…</p>';
+
+  // ---- choose the wav file for every main trial, then preload them ----
+  const quiet = CONDITIONS[0];
+  const mainTrials = [];   // {cond, file}
+  CONDITIONS.forEach(cond => {
+    const files = cond.type === 'quiet'
+      ? Array(CONFIG.trials_per_condition).fill(SILENCE_FILE)
+      : fileListFor(cond, CONFIG.trials_per_condition);
+    files.forEach(f => mainTrials.push({ cond, file: f }));
+  });
+  const shuffled = jsPsych.randomization.shuffle(mainTrials);
+
+  try {
+    const urls = [...new Set([SILENCE_FILE,
+                              ...ANIMALS.map(a => a.file),
+                              ...shuffled.map(t => t.file).filter(Boolean),
+                              ...TONES.map(t => t.file)])];
+    let done = 0;
+    await Promise.all(urls.map(u => loadBuffer(u).then(() => {
+      done++;
+      document.getElementById('loading').textContent = `Loading sounds… ${done}/${urls.length}`;
+    })));
+  } catch (err) {
+    body.innerHTML = `<p style="color:#b00"><b>Die Klänge konnten nicht geladen werden.</b><br>
+    Bitte deaktivieren Sie Browser-Erweiterungen (z. B. Werbeblocker) für diese Seite oder
+    versuchen Sie es mit einem anderen Browser (z. B. Chrome oder Edge) und laden Sie die Seite neu.</p>`;
+    return;
+  }
+
+  // Presentation window = longest of the tone sequence and all irrelevant-sound wav files,
+  // so every trial has the same length, whatever the condition
+  const longestWav = Math.max(0, ...Object.values(BUFFERS).map(b => b.duration));
+  PRESENT_MS = Math.round(Math.max(seqDuration, longestWav) * 1000) + 50;
+  console.log(`Presentation window: ${PRESENT_MS} ms (tones ${Math.round(seqDuration * 1000)} ms, longest wav ${Math.round(longestWav * 1000)} ms)`);
+
+  const sona_id = jsPsych.data.urlVariables().sona_id;   // undefined if not from SONA
+  jsPsych.data.addProperties({ sona_id: sona_id });
+
+  // ---- timeline ----
+  const timeline = [];
+  
+  const subject_id = jsPsych.randomization.randomID(10);
+  const filename = `${subject_id}.csv`;
+  const save_data = {
+      type: jsPsychPipe,
+      action: "save",
+      experiment_id: "f2aZHLvg6Sk1",
+      filename: filename,
+      data_string: ()=>jsPsych.data.get().csv()
+  };
+
+  // ---- Teilnahmeinformation und Einverständniserklärung ----
+  var consent_info = {
+    type: jsPsychHtmlButtonResponse,
+    stimulus: `
+      <div style="max-width:800px; margin:auto; text-align:left; max-height:70vh; overflow-y:auto; padding:0 10px;">
+        <h2>Teilnahmeinformation</h2>
+        <p><b>Titel der Studie:</b> Melodiengedächtnis</p>
+        <p><b>Durchführung:</b> Prof. Dr. Florian Kattner, Institute for Mind, Brain and Behavior, Health and Medical University, Olympischer Weg 1, 14471 Potsdam</p>
+        <p><b>Worum geht es?</b> In dieser Studie untersuchen wir das Gedächtnis für Tonfolgen.
+           Sie hören Folgen von Klaviertönen und spielen sie nach einer kurzen Pause nach.
+           Dabei hören Sie zum Teil auch weitere Geräusche, die Sie ignorieren sollen.</p>
+        <p><b>Dauer:</b> Die Studie dauert ca. 30-40 Minuten. Bitte nehmen Sie in einer ruhigen Umgebung teil und
+           tragen Sie Kopfhörer.</p>
+        <p><b>Freiwilligkeit:</b> Die Teilnahme ist vollkommen freiwillig. Sie können die Studie jederzeit
+           ohne Angabe von Gründen abbrechen. Sollten Sie sich für einen Abbruch des Experiments entscheiden, 
+           entstehen Ihnen dadurch keine Nachteile. Wenn Sie Ihre Teilnahme abbrechen, werden alle bis dahin 
+           im Rahmen des Experiments erhobenen Daten zu Ihrer Person gelöscht.</p>
+        <p><b>Auswandsentschädigung:</b> Die vollständige Teilnahme an der Studie wird mit der Gutschrift von 
+          1 Versuchspersonenstunde über SONA belohnt.</p>
+        <p><b>Datenschutz:</b> Wir erheben Alter, Geschlecht, Händigkeit sowie Ihre Antworten und
+           Reaktionszeiten. Die Daten werden anonymisiert gespeichert, so dass keine Verbindung zu 
+           ihrer Identität hergestellt werden kann. Die Daten werden ausschließlich für
+           wissenschaftliche Zwecke verwendet. Ihre Angaben zu Name/ID-Code für SONA-Credits werden
+           getrennt von den in der Studie erhobenen Daten ausschließlich für den Abgleich mit SONA verwendet.
+           ür Rückfragen zum Datenschutz stehen Ihnen die Studienleitung, Prof. Dr. Florian Kattner (florian.kattner@hmu-potsdam.de)
+           gerne zur Verfügung. In Streitfällen haben Sie das Recht, sich an die brandenburgische Landesbeauftragte 
+           für den Datenschutz und für das Recht auf Akteneinsicht zu wenden (Dagmar Hartge, Stahnsdorfer Damm 77, 14532 Kleinmachnow).
+           </p>
+        <p><b>Risiken:</b> Es sind keine besonderen Risiken zu erwarten. Bitte stellen Sie die
+           Lautstärke so ein, dass sie angenehm ist.</p>
+        <p><b>Kontakt bei Fragen:</b> Prof. Dr. Florian Kattner, florian.kattner@hmu-potsdam.de</p>
+        <hr>
+        <h3>Einverständniserklärung</h3>
+        <p>Ich habe die Teilnahmeinformation gelesen und verstanden. Ich bin mindestens 18 Jahre alt.
+           Ich nehme freiwillig teil und weiß, dass ich die Teilnahme jederzeit beenden kann.
+           Ich bin damit einverstanden, dass meine Daten wie oben beschrieben erhoben und
+           verarbeitet werden.</p>
+      </div>`,
+    choices: ['Ich stimme zu und möchte teilnehmen', 'Ich stimme nicht zu'],
+    on_finish: function(data) {
+      data.consent = (data.response === 0);
+      if (data.response === 1) {
+        jsPsych.endExperiment('Vielen Dank für Ihr Interesse. Sie haben der Teilnahme nicht zugestimmt. Sie können das Fenster nun schließen.');
+      }
+    }
+  };
+  timeline.push(consent_info);
+
+  var welcome = {
+    type: jsPsychInstructions,
+    pages: [`
+      <p>Herzlich Willkommen zu unserem Experiment!</p>
+      <p>Wir starten mit der Abfrage von wenigen personenbezogenen Daten</p>
+      <p>und werden dann die eigentliche Aufgabe im Experiment erkäutern..</p>
+      <p>Klicken Sie weiter, um fortzufahren</p>`],
+    show_clickable_nav: true,
+    button_label_next: "Weiter",
+    button_label_previous: "Zurück"
+  };
+  timeline.push(welcome)
+  
+  var age = {
+    type: jsPsychSurveyText,
+    questions: [
+      {prompt: 'Wie alt sind Sie?', required: true}
+    ],
+    button_label: "Weiter",
+    on_load: function() {
+      const input = document.querySelector('input');
+      const button = document.querySelector('input[type="submit"], button[type="submit"]');
+  
+      // Only allow digits and navigation keys
+      input.addEventListener('keydown', function(e) {
+        const allowed =
+          /^[0-9]$/.test(e.key) ||
+          ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.key);
+        if (!allowed) e.preventDefault();
+      });
+  
+      // Strip non-digits on paste
+      input.addEventListener('input', function() {
+        input.value = input.value.replace(/[^0-9]/g, '');
+      });
+  
+      // Validate range on submit
+      button.addEventListener('click', function(e) {
+        const val = parseInt(input.value);
+        if (isNaN(val) || val < 18 || val > 99) {
+          e.preventDefault();
+          e.stopPropagation();
+          input.style.border = '2px solid red';
+          
+          // Show error message if not already there
+          let error = document.getElementById('age-error');
+          if (!error) {
+            error = document.createElement('p');
+            error.id = 'age-error';
+            error.style.color = 'red';
+            error.textContent = 'Bitte geben Sie ein Alter zwischen 18 und 99 ein.';
+            input.parentNode.insertBefore(error, input.nextSibling);
+          }
+        }
+      });
+    }
+  };
+  timeline.push(age);
+  
+  var gender_hand = {
+    type: jsPsychSurveyMultiChoice,
+    questions: [
+      {
+        prompt: "Geben Sie bitte Ihr Geschlecht an:", 
+        name: 'Geschlecht', 
+        options: ['weiblich', 'männlich', 'divers', 'keine Angabe'], 
+        required: true
+      }, 
+      {
+        prompt: "Wie ist Ihre Händigkeit (dominante Hand)?", 
+        name: 'Händigkeit', 
+        options: ['rechtshändig', 'linkshändig', 'beidhändig', 'keine Angabe'], 
+        required: false
+      }
+    ],
+    button_label: "Weiter"
+  };
+  timeline.push(gender_hand);
+  
+  var sona = {
+    type: jsPsychSurveyText,
+    questions: [
+      {prompt: 'Wenn Sie SONA-Credits erhalten wollen, geben Sie hier bitte Ihren Namen oder Ihren ID-Code an:'}
+    ]
+  }
+  timeline.push(sona);
+  
+  var ready_audio = {
+    type: jsPsychSurveyText,
+    preamble: `Wir starten nun mit dem Audio-Test. Setzen Sie dazu bitte Ihre Kopfhörer auf. `,
+    questions: [
+      {prompt: 'Geben Sie hier bitte die Marke und das Modell Ihrer Kopfhörer ein:', name: 'Kopfhörer'}
+    ],
+    button_label: "Weiter",
+    on_finish: () => getCtx().resume()
+  };
+  timeline.push(ready_audio);
+  
+  // Audio Check
+  var check_audio = {
+    type: jsPsychHtmlButtonResponse,
+    stimulus: () => {
+      currentAnimal = jsPsych.randomization.sampleWithoutReplacement(ANIMALS, 1)[0];
+      return `<p>Welches Tier hören Sie?</p>
+        <button onclick="playCurrentAnimal()"
+                style="margin-bottom:20px; padding:8px 16px; cursor:pointer;">
+          🔊 Nochmal abspielen
+        </button>`;
+    },
+    choices: ANIMALS.map(a => a.label),
+    on_load: () => playCurrentAnimal(0.3),
+    on_finish: (data) => {
+      data.animal = currentAnimal.label;
+      data.correct = data.response === ANIMALS.indexOf(currentAnimal);
+      lastCorrect = data.correct;
+    }
+  };
+
+  var wrong_message = {
+    type: jsPsychHtmlButtonResponse,
+    stimulus: `<p style="color:red"><b>Das war leider nicht richtig.</b></p>
+      <p>Bitte prüfen Sie, ob Ihre Kopfhörer richtig angeschlossen sind und die Lautstärke passt.
+        Sie hören gleich ein neues Tier.</p>`,
+    choices: ['Weiter']
+  };
+
+  timeline.push({
+    timeline: [
+      check_audio,
+      { timeline: [wrong_message], conditional_function: () => !lastCorrect }
+    ],
+    loop_function: () => !lastCorrect    // repeat until the answer is correct
+  });
+     
+  // Instructions (the button click also unlocks audio in the browser)
+  timeline.push({
+    type: jsPsychHtmlButtonResponse,
+    stimulus: `
+      <h2>Wir kommen nun zur Melodiengedächtnisaufgabe</h2>
+      <p>Bitte tragen Sie Kopfhörer und stellen Sie eine angenehme Lautstärke ein.</p>
+      <p>In jedem Durchgang werden Sie eine Folge von ${CONFIG.n_tones} Klaviertönen hören
+         (tiefe, mittlere und hohe Töne). Bitte merken Sie sich die Reihenfolge der Töne.</p>
+      <p>Später werden Sie auch noch weitere Töne (Flöte) und Sprache hören. Diese können Sie ignorieren.</p>
+      <p>Nach einer kurzen Verzögerung werden Sie jeweils gebeten, die Klaviertöne nachzuspielen, indem Sie
+        die entsprechenden Felder für <b>"tief"</b>, <b>"mittel"</b> und <b>"hoch"</b> 
+        in der gehörten Reihenfolge anklicken.</p>
+      <p>Wir starten nun mit zwei Übungsdurchgängen, in denen Sie nur die Klaviertöne hören.</p>`,
+    choices: ['Start'],
+    on_finish: () => getCtx().resume()
+  });
+
+  for (let i = 0; i < CONFIG.n_practice; i++) timeline.push(...makeTrial(quiet, SILENCE_FILE, 'practice'));
+
+  timeline.push({
+    type: jsPsychHtmlButtonResponse,
+    stimulus: `
+    <p>Das waren die Übungsdurchgänge. Wir beginnen nun mit der eigentlichen Aufgabe.</p>
+    <p>Sie werden nun auch weitere Töne oder Sprache hören. Bitte achten Sie nur auf die Klaviertöne!</p>`,
+    choices: ['Weiter']
+  });
+
+  //CONFIG.retention_ms = 0
+
+  shuffled.forEach(t => timeline.push(...makeTrial(t.cond, t.file, 'main')));
+
+  timeline.push(save_data)
+
+  timeline.push({
+    type: jsPsychHtmlButtonResponse,
+    stimulus: '<p>Vielen Dank! Das Experiment ist nun zu Ende..</p>',
+    choices: ['Weiter / SONA Credits erhalten'],
+    on_finish: () => {
+      if (sona_id) {
+        window.location.href =
+          `https://hmu.sona-systems.com/webstudy_credit.aspx?experiment_id=460&credit_token=de014d7867294686ac6b50a89dc97d10&survey_code={sona_id}`;
+      }
+    }
+  });
+
+  body.innerHTML = '';
+  jsPsych.run(timeline);
+}
+
+main();
+</script>
+</html>
