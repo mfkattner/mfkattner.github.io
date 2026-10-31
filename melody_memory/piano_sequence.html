@@ -12,6 +12,7 @@
   <script src="https://unpkg.com/@jspsych/plugin-audio-button-response@1"></script>
   <script src="https://unpkg.com/@jspsych/extension-pipe@0.2.0"></script>
   <script src="https://unpkg.com/@jspsych-contrib/plugin-pipe"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-survey-html-form@1"></script>
   <link rel="stylesheet" href="https://unpkg.com/jspsych@7.3.4/css/jspsych.css">
   <style>
     .piano { position: relative; width: 420px; height: 180px; margin: 20px auto 60px; user-select: none; }
@@ -625,6 +626,84 @@ async function main() {
     loop_function: () => !lastCorrect    // repeat until the answer is correct
   });
      
+  var musicality = {
+    type: jsPsychSurveyHtmlForm,
+    preamble: '<h3>Fragen zur Musikalität</h3>',
+    html: `
+      <div style="text-align:left; max-width:700px; margin:auto; line-height:1.6;">
+        <p><b>1. Wie lange hatten Sie insgesamt Musikunterricht auf einem Instrument (oder Chor) außerhalb des Schulunterrichts?</b><br>
+           <input type="number" name="train_years" min="0" max="80" step="0.5" required style="width:80px"> Jahre
+           <br><small>0, falls Sie nie Unterricht hatten.</small></p>
+
+        <p><b>2. In welchem Alter haben Sie mit dem Musikunterricht (Instrument oder Chor) begonnen?</b><br>
+           <input type="number" name="train_start_age" min="1" max="99" step="1" style="width:80px"> Jahre
+           <br><small>Falls Sie nie Musikunterricht hatten, lassen Sie das Feld bitte leer.</small></p>
+
+        <p><b>3. Musizieren Sie aktuell aktiv (Instrument oder Chor)?</b><br>
+           <label><input type="radio" name="active_music" value="regelmaessig" required> Ja, regelmäßig (mindestens einmal pro Woche)</label><br>
+           <label><input type="radio" name="active_music" value="gelegentlich" required> Ja, gelegentlich</label><br>
+           <label><input type="radio" name="active_music" value="nein" required> Nein</label></p>
+
+        <p><b>3. Wie viele Musikinstrumente beherrschen Sie insgesamt (Gesang eingeschlossen)?</b><br>
+           <input type="number" name="n_instruments" min="0" max="20" step="1" required style="width:80px"></p>
+
+        <p><b>4. Welches Instrument beherrschen Sie am besten?</b><br>
+        <select name="best_instrument" id="best_instrument" required>
+          <option value="">– bitte wählen –</option>
+          <option value="keins">Ich spiele kein Instrument</option>
+          <option value="klavier">Klavier / Keyboard</option>
+          <option value="gitarre">Gitarre</option>
+          <option value="bass">E-Bass</option>
+          <option value="schlagzeug">Schlagzeug / Percussion</option>
+          <option value="streicher_hoch">Violine / Bratsche</option>
+          <option value="streicher_tief">Cello / Kontrabass</option>
+          <option value="blockfloete">Blockflöte</option>
+          <option value="querfloete">Querflöte</option>
+          <option value="rohrblatt">Klarinette / Saxophon / Oboe / Fagott</option>
+          <option value="blech">Trompete / Posaune / Horn / Tuba</option>
+          <option value="akkordeon">Akkordeon</option>
+          <option value="gesang">Gesang</option>
+          <option value="sonstiges">Sonstiges</option>
+        </select>
+        <span id="other_wrap" style="display:none; margin-left:10px;">
+          Welches? <input type="text" name="best_instrument_other" id="best_instrument_other" maxlength="60" style="width:200px">
+        </span></p>
+
+        <p><b>6. Wie gut können Sie Noten lesen?</b><br>
+           <label><input type="radio" name="read_notation" value="0" required> gar nicht</label><br>
+           <label><input type="radio" name="read_notation" value="1" required> ein wenig (einzelne Noten)</label><br>
+           <label><input type="radio" name="read_notation" value="2" required> mittelmäßig (einfache Melodien)</label><br>
+           <label><input type="radio" name="read_notation" value="3" required> gut</label><br>
+           <label><input type="radio" name="read_notation" value="4" required> sehr gut (vom Blatt spielen/singen)</label></p>
+
+        <p><b>7. Haben Sie ein absolutes Gehör (Töne ohne Referenzton benennen)?</b><br>
+           <label><input type="radio" name="absolute_pitch" value="ja" required> Ja</label>
+           <label><input type="radio" name="absolute_pitch" value="nein" required> Nein</label>
+           <label><input type="radio" name="absolute_pitch" value="unsicher" required> Ich bin nicht sicher</label></p>
+
+        <p><b>8. Wie musikalisch schätzen Sie sich selbst ein?</b><br>
+           <small>0 = überhaupt nicht musikalisch, 9 = sehr musikalisch</small><br>
+           <span style="display:inline-block; margin-top:6px;">
+             ${[0,1,2,3,4,5,6,7,8,9].map(v =>
+               `<label style="margin-right:10px;"><input type="radio" name="musicality_rating" value="${v}" required> ${v}</label>`
+             ).join('')}
+           </span></p>
+      </div>`,
+    button_label: 'Weiter',
+    on_load: function() {
+      const sel   = document.getElementById('best_instrument');
+      const wrap  = document.getElementById('other_wrap');
+      const other = document.getElementById('best_instrument_other');
+      sel.addEventListener('change', function() {
+        const show = (sel.value === 'sonstiges');
+        wrap.style.display = show ? 'inline' : 'none';
+        other.required = show;          // text is required only if "Sonstiges" is chosen
+        if (!show) other.value = '';
+      });
+    },
+  };
+  timeline.push(musicality);
+  
   // Instructions (the button click also unlocks audio in the browser)
   timeline.push({
     type: jsPsychHtmlButtonResponse,
