@@ -46,7 +46,7 @@ const CONFIG = {
   tone_dur: 0.500,            // s, duration of each target tone
   isi: 0.300,                 // s, silence between tones (SOA = tone_dur + isi)
   retention_ms: 0,            // retention interval (after sound)
-  trials_per_condition: 7,    // experimental trials per irrelevant-sound condition
+  trials_per_condition: 14,    // experimental trials per irrelevant-sound condition
   n_practice: 2,              // practice trials (always quiet)
   sound_dir: 'sound/',        // folder with the irrelevant-sound wav files
   target_gain: 0.30,          // volume of target tones
@@ -56,6 +56,16 @@ const CONFIG = {
   score_feedback: 'all',      // show number correct after recall: 'all', 'practice' or 'none'
   score_feedback_ms: 2000     // how long the score is shown
 };
+
+function toCSV(rows, cols) {
+  const esc = v => {
+    const s = (v === undefined || v === null) ? '' : String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  return [cols.join(',')]
+    .concat(rows.map(r => cols.map(c => esc(r[c])).join(',')))
+    .join('\n');
+}
 
 // Animal sounds for the audio test (file name must match your files exactly)
 const ANIMALS = [
@@ -431,15 +441,17 @@ async function main() {
   const sona_id = jsPsych.data.urlVariables().sona_id;   // undefined if not from SONA
   jsPsych.data.addProperties({ sona_id: sona_id });
 
+
   // ---- timeline ----
   const timeline = [];
   
   const subject_id = jsPsych.randomization.randomID(10);
+  jsPsych.data.addProperties({ subject_id: subject_id });
   const filename = `${subject_id}.csv`;
   const save_data = {
       type: jsPsychPipe,
       action: "save",
-      experiment_id: "f2aZHLvg6Sk1",
+      experiment_id: "1FHCKskoL7pT",  //Zenodo: "f2aZHLvg6Sk1",
       filename: filename,
       data_string: ()=>jsPsych.data.get().csv()
   };
@@ -736,6 +748,22 @@ async function main() {
   shuffled.forEach(t => timeline.push(...makeTrial(t.cond, t.file, 'main')));
 
   timeline.push(save_data)
+
+  const save_trials = {
+    type: jsPsychPipe,
+    action: "save",
+    experiment_id: "bERUDNtXOLmc",
+    filename: `${subject_id}_trials.csv`,
+    data_string: () => {
+      const rows = jsPsych.data.get().filter({ stage: 'recall', phase: 'main' }).values();
+      rows.forEach((r, i) => { r.trial_number = i + 1; });
+      return toCSV(rows, ['subject_id', 'trial_number', 'condition', 'sound_type',
+        'sound_material', 'sound_file', 'target_notes', 'target_buttons',
+        'response_buttons', 'correct_per_position', 'n_correct', 'all_correct',
+        'rt_per_click', 'total_time']);
+    }
+  };
+  timeline.push(save_trials);
 
   timeline.push({
     type: jsPsychHtmlButtonResponse,
