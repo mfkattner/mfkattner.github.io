@@ -752,7 +752,7 @@ async function main() {
   const save_trials = {
     type: jsPsychPipe,
     action: "save",
-    experiment_id: "bERUDNtXOLmc",
+    experiment_id: "1FHCKskoL7pT",  // osf: "bERUDNtXOLmc",
     filename: `${subject_id}_trials.csv`,
     data_string: () => {
       const rows = jsPsych.data.get().filter({ stage: 'recall', phase: 'main' }).values();
