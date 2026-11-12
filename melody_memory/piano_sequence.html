@@ -438,9 +438,20 @@ async function main() {
   PRESENT_MS = Math.round(Math.max(seqDuration, longestWav) * 1000) + 50;
   console.log(`Presentation window: ${PRESENT_MS} ms (tones ${Math.round(seqDuration * 1000)} ms, longest wav ${Math.round(longestWav * 1000)} ms)`);
 
+  // ---- add data ----
   const sona_id = jsPsych.data.urlVariables().sona_id;   // undefined if not from SONA
-  jsPsych.data.addProperties({ sona_id: sona_id });
+  const site    = jsPsych.data.urlVariables().site;
+  const SONA_SITES = {
+    hmu:   { host: 'hmu.sona-systems.com',   experiment_id: '460',   credit_token: 'de014d7867294686ac6b50a89dc97d10' }, // HMU: de014d7867294686ac6b50a89dc97d10
+    msb: { host: 'msberlin.sona-systems.com',   experiment_id: '2082',   credit_token: '17b10f5dc8a04c0e8929982636e393c7' } // MCB: https://msberlin.sona-systems.com/webstudy_credit.aspx?experiment_id=2082&credit_token=17b10f5dc8a04c0e8929982636e393c7&survey_code=XXXX
+  };
 
+  jsPsych.data.addProperties({ 
+    sona_id: sona_id, 
+    sona_site: site,
+    start_time: new Date().toISOString(),   // UTC, e.g. 2026-11-06T07:28:00.000Z
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone   // e.g. Europe/Berlin
+  });
 
   // ---- timeline ----
   const timeline = [];
@@ -767,12 +778,19 @@ async function main() {
 
   timeline.push({
     type: jsPsychHtmlButtonResponse,
-    stimulus: '<p>Vielen Dank! Das Experiment ist nun zu Ende..</p>',
-    choices: ['Weiter / SONA Credits erhalten'],
+    stimulus: '<p>Vielen Dank! Das Experiment ist nun zu Ende. Bitte klicken Sie, um die Studie abzuschließen.</p>',
+    choices: ['Beenden / SONA Credits erhalten'],
+    // on_finish: () => {
+    //   if (sona_id) {
+    //     window.location.href =
+    //       `https://hmu.sona-systems.com/webstudy_credit.aspx?experiment_id=460&credit_token=de014d7867294686ac6b50a89dc97d10&survey_code=${sona_id}`;
+    //   }
+    // }
     on_finish: () => {
-      if (sona_id) {
+      const s = SONA_SITES[site];
+      if (sona_id && s) {
         window.location.href =
-          `https://hmu.sona-systems.com/webstudy_credit.aspx?experiment_id=460&credit_token=de014d7867294686ac6b50a89dc97d10&survey_code=${sona_id}`;
+          `https://${s.host}/webstudy_credit.aspx?experiment_id=${s.experiment_id}&credit_token=${s.credit_token}&survey_code=${sona_id}`;
       }
     }
   });
