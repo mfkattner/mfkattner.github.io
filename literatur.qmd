@@ -1,0 +1,19 @@
+---
+title: "Literatur"
+format: html
+---
+
+
+[Bell et al. (2023)](literatur/Bell_etal_2023_SciRep_music.pdf)
+
+[Grant et al. (1998)](literatur/Grant_1998_context-dependent-memory-sound.pdf)
+
+[Hanley & Bourgaize (2018)](literatur/Hanley_Bourgaize_2018_M&C_suffix.pdf)
+
+[Hughes et al. (2011)](literatur/Hughes_etal_2011_M&C_talker-variability.pdf)
+
+[Hughes et al. (2026)](literatur/Hughes_etal_2026_JML.pdf)
+
+<!--[Kattner et al. (2024)](literatur/Kattner_Foecker_Moshona_Marsh_2024_JASA.pdf)-->
+
+[Vachon et al. (2018)](literatur/Vachon_etal_2018_JoC_hebb-learning.pdf)
